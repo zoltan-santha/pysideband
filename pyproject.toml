@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pysideband"
+dynamic = [ "version" ]
+description = "desc."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "" }
+authors = [
+    { name = "Zoltán Sántha", email = "santha.zoltan@wigner.hun-ren.hu" }
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "phonopy",
+    "pyyaml",
+    "types-PyYAML",
+    "mpi4py",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "mypy",
+    "build",
+    "twine",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "pysideband.__version__" }
+
+[project.scripts]
+pysideband = "pysideband.cli:main"
