@@ -1,0 +1,41 @@
+project:
+  name: NV_negative_in_diamond
+  workflow:
+    - interpolate:
+      - singlephonon
+      - multiphonon
+
+parallel:
+  ranks: 12
+
+interpolate:
+  method: interpolate
+  grid:
+    size: [8, 8, 8]
+  initial state:
+    structure: examples/data/nv/NVm1_e_x_4x4x4.CONTCAR.vasp | vasp
+  final state:
+    structure: examples/data/nv/NVm1_gnd_4x4x4.CONTCAR.vasp | vasp
+    phonons:
+      force constants: examples/data/nv/FORCE_CONSTANTS
+      phonopy displacements: examples/data/nv/phonopy_disp.yaml
+
+singlephonon:
+  method: singlephonon
+  energy window:
+    range: [0, 0.2] eV
+    step: 0.01 meV
+  smearing:
+    gaussian: 1 meV
+
+multiphonon:
+  method: multiphonon
+  ZPL: 1.945 eV
+  process: emission
+  energy window:
+    range: [1.2, 2.1] eV
+    step: 0.1 meV
+  smearing:
+    gaussian: 1 meV
+    lorentzian: 1 meV
+  temperature: [0, 4, 77, 300] K
