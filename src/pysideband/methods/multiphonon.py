@@ -194,7 +194,9 @@ def _bose_occupation(frequencies: np.ndarray, T: float) -> np.ndarray:
     nbar = np.zeros_like(x)
     
     under_overflow_mask = x < 700  # Avoid overflow in exp for large x
-    nbar[under_overflow_mask] = 1.0 / np.expm1(x[under_overflow_mask])
+    nonzero_mask = x != 0 # Avoid 0 value in exp(x)-1
+    mask = under_overflow_mask & nonzero_mask
+    nbar[mask] = 1.0 / np.expm1(x[mask])
     
     return nbar
 
