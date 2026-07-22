@@ -72,12 +72,12 @@ class Phonons:
             print(f"Interpolating for q-point {i+1}/{len(q_points)}: {q} with weight {w}.", flush=True)
             gauged_mwd = transition_force.mass_weighted_q_gauged(q).flatten()
             frequencies, eigenvectors = self.eigh(q)
-            frequencies[frequencies < 0] = 0.0
-            frequencies_set.append(frequencies)
+            freq_mask = frequencies > 0
+            frequencies_set.append(frequencies[freq_mask])
             _factor = 1.0 / (2 * Phonopy_get_physical_units().EV * Phonopy_get_physical_units().Hbar**2)
             _factor *= Phonopy_get_physical_units().AMU * Phonopy_get_physical_units().Angstrom**2
             interpolated_quantity = w * _factor * np.abs(eigenvectors.conj().T @ gauged_mwd)**2 / (frequencies ** 3)
-            interpolated_quantity_set.append(interpolated_quantity)
+            interpolated_quantity_set.append(interpolated_quantity[freq_mask])
         if len(frequencies_set) > 0:
             frequencies_set = np.concatenate(frequencies_set, axis=None)
             interpolated_quantity_set = np.concatenate(interpolated_quantity_set, axis=None)
