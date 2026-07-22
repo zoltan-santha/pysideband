@@ -15,7 +15,7 @@ authors = [
 dependencies = [
     "numpy",
     "scipy",
-    "phonopy",
+    "phonopy>=2.38.2",
     "pyyaml",
     "types-PyYAML",
     "mpi4py",
