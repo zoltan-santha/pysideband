@@ -69,7 +69,7 @@ class Structure:
                 for k in range(-1, 2)
             ]).transpose()[None, :, :]
             self_f_image_positions_subset = self_f_positions_subset[:, :, None] + neighbor_cells
-            distance_vectors = (other_f_positions_subset @ lattice)[:, None, :, None] - np.einsum("ab,ibk->iak", lattice, self_f_image_positions_subset)[None, :, :, :]
+            distance_vectors = (other_f_positions_subset @ lattice)[:, None, :, None] - np.einsum("ibk,ba->iak", self_f_image_positions_subset, lattice)[None, :, :, :]
             distances = np.linalg.norm(distance_vectors, axis=2)
             min_distance_indices = np.argmin(distances, axis=2)
             min_distances = np.take_along_axis(
