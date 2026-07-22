@@ -69,9 +69,10 @@ class Phonons:
         frequencies_set = []
         interpolated_quantity_set = []
         for i, (q, w) in enumerate(zip(q_points, q_weights)):
-            #print(f"Interpolating for q-point {i+1}/{len(q_points)}: {q} with weight {w}.", flush=True)
+            print(f"Interpolating for q-point {i+1}/{len(q_points)}: {q} with weight {w}.", flush=True)
             gauged_mwd = transition_force.mass_weighted_q_gauged(q).flatten()
             frequencies, eigenvectors = self.eigh(q)
+            frequencies[frequencies < 0] = 0.0
             frequencies_set.append(frequencies)
             _factor = 1.0 / (2 * Phonopy_get_physical_units().EV * Phonopy_get_physical_units().Hbar**2)
             _factor *= Phonopy_get_physical_units().AMU * Phonopy_get_physical_units().Angstrom**2
