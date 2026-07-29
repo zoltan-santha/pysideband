@@ -29,7 +29,7 @@ class Displacement:
             for k in range(-1, 2)
         ]).transpose()[None, :, :]
         distance_vectors = np.einsum(
-            "ab,ibk->iak",
+            "ba,ibk->iak",
             lattice,
             (final_f_positions[:, :, None] + neighbor_cells) - initial_f_positions[:, :, None]
         )
@@ -63,7 +63,7 @@ class Displacement:
         ]).transpose()[None, :, :]
         lattice = reference.structure.cell
         distance_vectors_from_cyclic_center = np.einsum(
-            "ab,ibk->iak",
+            "ba,ibk->iak",
             lattice,
             (reference.structure.scaled_positions[:, :, None] + neighbor_cells) - cyclic_center_of_mwd[None, :, None]
         )
