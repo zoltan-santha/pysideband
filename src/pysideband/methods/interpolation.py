@@ -13,6 +13,17 @@ from pysideband.methods.parameters import Field, Parameter, MethodParameters, ge
 
 
 params: dict[str, Any] = {
+    "output": Field(
+        syntax="$directory",
+        description="Output directory for interpolation results.",
+        params={
+            "directory": Parameter(
+                attr="output_directory",
+                type=Path,
+                default=Path("")
+            ),
+        },
+    ),
     "grid": {
         "size": Field(
             syntax="\[$size\]",
@@ -98,6 +109,7 @@ params: dict[str, Any] = {
 
 @dataclass
 class InterpolationParameters(MethodParameters):
+    output_directory: Path | None = None
     grid_size: np.ndarray | None = None
     grid_shift: np.ndarray | None = None
     initial_structure_file: Path | None = None
@@ -134,7 +146,8 @@ class Interpolation(Method):
             f"      structure: {self.parameters.final_structure_file} ({self.parameters.final_structure_format.value})" "\n"
             f"      phonons:" "\n"
             f"        force constants: {self.parameters.final_structure_force_constants_file}" "\n"
-            f"        displacements: {self.parameters.final_structure_phonopy_disp_yaml_file}",
+            f"        displacements: {self.parameters.final_structure_phonopy_disp_yaml_file}" "\n"
+            f"  output directory: {self.parameters.output_directory}",
             flush=True
         )
         
@@ -261,6 +274,9 @@ class Interpolation(Method):
         
         gathered = mpi.gather((local_frequencies, local_phrf), root=0)
         
+        output_dir = self.parameters.output_directory
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
         savefile_name = f"interpolated_{self.parameters.grid_size[0]}x{self.parameters.grid_size[1]}x{self.parameters.grid_size[2]}"
         if mpi.is_root:
             frequencies = np.concatenate([item[0] for item in gathered], axis=None)
@@ -275,14 +291,14 @@ class Interpolation(Method):
                 flush=True
             )
             
-            with open(f"{savefile_name}.frequencies", "wb") as file:
+            with open(f"{output_dir}/{savefile_name}.frequencies", "wb") as file:
                 np.save(file, frequencies)
-            with open(f"{savefile_name}.pHRf", "wb") as file:
+            with open(f"{output_dir}/{savefile_name}.pHRf", "wb") as file:
                 np.save(file, partial_hrf)
             print(
                 f"Saved:" "\n"
-                f"  phonon frequencies: {savefile_name}.frequencies" "\n"
-                f"  partial HR factors: {savefile_name}.pHRf",
+                f"  phonon frequencies: {output_dir}/{savefile_name}.frequencies" "\n"
+                f"  partial HR factors: {output_dir}/{savefile_name}.pHRf",
                 flush=True
             )
         
@@ -296,10 +312,10 @@ class Interpolation(Method):
         return MethodResult(
             output_files={
                 "frequencies": Path(
-                    f"{savefile_name}.frequencies"
+                    f"{output_dir}/{savefile_name}.frequencies"
                 ),
                 "pHRf": Path(
-                    f"{savefile_name}.pHRf"
+                    f"{output_dir}/{savefile_name}.pHRf"
                 ),
             }
         )

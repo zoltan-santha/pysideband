@@ -57,6 +57,17 @@ params: dict[str, Any] = {
             },
         ),
     },
+    "output": Field(
+        syntax="$directory",
+        description="Output directory for the multi phonon method (string, e.g., 'path/to/output').",
+        params={
+            "directory": Parameter(
+                attr="output_directory",
+                type=Path,
+                default=Path("internal-pysideband-parent-folder")
+            ),
+        },
+    ),
     "process": Field(
         syntax="$process",
         description="Process type for the multi phonon method (string, either 'absorption' or 'emission').",
@@ -170,6 +181,7 @@ params: dict[str, Any] = {
 class MultiPhononParameters(MethodParameters):
     frequencies_file: Path | None = None
     pHRf_file: Path | None = None
+    output_directory: Path | None = None
     process: Process | None = None
     zpl_energy_value: float | None = None
     zpl_energy_units: str | None = None
@@ -261,7 +273,8 @@ class MultiPhonon(Method):
             f"    smearing:" "\n"
             f"      Gaussian sigma: {self.parameters.smearing_gaussian_sigma_value} {self.parameters.smearing_gaussian_sigma_units}" "\n"
             f"      Lorentzian gamma: {self.parameters.smearing_lorentzian_gamma_value} {self.parameters.smearing_lorentzian_gamma_units}" "\n"
-            f"    temperature: {self.parameters.temperature_value} {self.parameters.temperature_units}",
+            f"    temperature: {self.parameters.temperature_value} {self.parameters.temperature_units}" "\n"
+            f"  output directory: {self.parameters.output_directory}",
             flush=True
         )
         
@@ -378,7 +391,12 @@ class MultiPhonon(Method):
             end="", flush=True
         )
         
-        output_files["energy"] = Path(f"mph_spectrum.energy")
+        output_dir = self.parameters.output_directory
+        if output_dir == Path("internal-pysideband-parent-folder"):
+            output_dir = self.parameters.frequencies_file.parent
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        output_files["energy"] = Path(f"{output_dir}/mph_spectrum.energy")
         if mpi.is_root:
             with open(f"{output_files['energy']}", "wb") as file:
                 np.save(file, energy_to_units(E_out, output_units))
@@ -534,12 +552,12 @@ class MultiPhonon(Method):
             )
             
             savefile_name = f"mph_spectrum_T{int(T)}K"
-            output_files["spectrum"][f"T{int(T)}K"] = Path(f"{savefile_name}.spectrum")
-            output_files["lineshape"][f"T{int(T)}K"] = Path(f"{savefile_name}.lineshape")
+            output_files["spectrum"][f"T{int(T)}K"] = Path(f"{output_dir}/{savefile_name}.spectrum")
+            output_files["lineshape"][f"T{int(T)}K"] = Path(f"{output_dir}/{savefile_name}.lineshape")
             if mpi.is_root:
-                with open(f"{savefile_name}.spectrum", "wb") as file:
+                with open(f"{output_dir}/{savefile_name}.spectrum", "wb") as file:
                     np.save(file, A)
-                with open(f"{savefile_name}.lineshape", "wb") as file:
+                with open(f"{output_dir}/{savefile_name}.lineshape", "wb") as file:
                     np.save(file, L)
             
             if mpi.is_root: print(

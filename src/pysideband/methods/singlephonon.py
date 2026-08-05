@@ -37,6 +37,17 @@ params: dict[str, Any] = {
             },
         ),
     },
+    "output": Field(
+        syntax="$directory",
+        description="Path to the output directory where the results will be saved (e.g., 'path/to/output').",
+        params={
+            "directory": Parameter(
+                attr="output_directory",
+                type=Path,
+                default=Path("internal-pysideband-parent-folder")
+            ),
+        },
+    ),
     "energy window": {
         "range": Field(
             syntax="\[$value\] [$units]",
@@ -96,6 +107,7 @@ params: dict[str, Any] = {
 class SinglePhononParameters(MethodParameters):
     frequencies_file: Path | None = None
     pHRf_file: Path | None = None
+    output_directory: Path | None = None
     energy_window_range_value: np.ndarray | None = None
     energy_window_range_units: str | None = None
     energy_window_step_value: float | None = None
@@ -151,7 +163,8 @@ class SinglePhonon(Method):
             f"      range: {self.parameters.energy_window_range_value} {self.parameters.energy_window_range_units}" "\n"
             f"      step: {self.parameters.energy_window_step_value} {self.parameters.energy_window_step_units}" "\n"
             f"    smearing:" "\n"
-            f"      Gaussian sigma: {self.parameters.smearing_gaussian_sigma_value} {self.parameters.smearing_gaussian_sigma_units}",
+            f"      Gaussian sigma: {self.parameters.smearing_gaussian_sigma_value} {self.parameters.smearing_gaussian_sigma_units}" "\n"
+            f"  output directory: {self.parameters.output_directory}",
             flush=True
         )
         
@@ -209,6 +222,11 @@ class SinglePhonon(Method):
         local_spectrum = smearer.smear(energy_grid, local_frequencies, local_partial_hrf)
         gathered_spectrum = mpi.gather(local_spectrum, root=0)
         
+        output_dir = self.parameters.output_directory
+        if output_dir == Path("internal-pysideband-parent-folder"):
+            output_dir = self.parameters.frequencies_file.parent
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
         savefile_name = "sph_spectrum"
         if mpi.is_root:
             spectrum = np.sum(gathered_spectrum, axis=0)
@@ -218,14 +236,14 @@ class SinglePhonon(Method):
                 f"  Area under the spectrum curve: {np.trapezoid(spectrum, energy_grid):.3f}",
             )
             
-            with open(f"{savefile_name}.energy", "wb") as file:
+            with open(f"{output_dir}/{savefile_name}.energy", "wb") as file:
                 np.save(file, energy_to_units(energy_grid, output_units))
-            with open(f"{savefile_name}.spectrum", "wb") as file:
+            with open(f"{output_dir}/{savefile_name}.spectrum", "wb") as file:
                 np.save(file, energy_inverse_to_units(spectrum, output_units))
             print(
                 f"Saved:" "\n"
-                f"  energy grid: {savefile_name}.energy (units: {output_units})" "\n"
-                f"  spectrum: {savefile_name}.spectrum (units: 1/{output_units})",
+                f"  energy grid: {output_dir}/{savefile_name}.energy (units: {output_units})" "\n"
+                f"  spectrum: {output_dir}/{savefile_name}.spectrum (units: 1/{output_units})",
                 flush=True
             )
         
@@ -238,7 +256,7 @@ class SinglePhonon(Method):
         
         return MethodResult(
             output_files={
-                "energy": Path(f"{savefile_name}.energy"),
-                "spectrum": Path(f"{savefile_name}.spectrum"),
+                "energy": Path(f"{output_dir}/{savefile_name}.energy"),
+                "spectrum": Path(f"{output_dir}/{savefile_name}.spectrum"),
             }
         )
