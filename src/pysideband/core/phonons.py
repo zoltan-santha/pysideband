@@ -57,6 +57,30 @@ class Phonons:
             raise ValueError(f"Phonon data not loaded for file: {self._phonopy_yaml_path}")
         return np.prod(self.structure.scaled_positions.shape)
     
+    @property
+    def dynamical_matrix(self):
+        fc = self._phonon.force_constants
+        primitive = self._phonon.primitive
+        p2s = primitive.p2s_map
+        s2p = primitive.s2p_map
+        masses = primitive.masses
+        n_p = len(p2s)
+        if fc.shape[0] == fc.shape[1]:       # Full FC
+            fc_left = fc[p2s]
+        else:                                # Compact FC
+            fc_left = fc
+        gamma_fc = np.zeros((n_p, n_p, 3, 3), dtype=fc.dtype)
+        for j, representative in enumerate(p2s):
+            image_indices = np.flatnonzero(s2p == representative)
+            gamma_fc[:, j] = fc_left[:, image_indices].sum(axis=1)
+        mass_factor = np.sqrt(masses[:, None] * masses[None, :])
+        blocks = gamma_fc / mass_factor[:, :, None, None]
+        dm = blocks.transpose(0, 2, 1, 3).reshape(3 * n_p, 3 * n_p)
+        dm = np.asarray(dm, dtype=np.complex128)
+        dm = (dm + dm.conj().T) / 2
+        dm *= Phonopy_get_physical_units().THzToEv
+        return dm
+    
     def eigh(self, q: Sequence[float] | np.ndarray = np.zeros(3)):
         if len(q) != 3:
             raise ValueError(f"Invalid q-point: {q}. Must be a sequence of 3 floats.")

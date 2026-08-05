@@ -17,9 +17,8 @@ class TransitionForce(Displacement):
             optional_crystal_info = None
         )
         mass_weighted_displacement = super().mass_weighted()
-        f, v = phonons.eigh()
-        f[f < 0] = 0.0
-        self._transition_force = (v @ (f**2 * (v.conj().T @ mass_weighted_displacement.flatten()))).reshape(mass_weighted_displacement.shape)
+        dm = phonons.dynamical_matrix
+        self._transition_force = (dm @ mass_weighted_displacement.flatten()).reshape(mass_weighted_displacement.shape)
     
     def mass_weighted(self):
         return self._transition_force
