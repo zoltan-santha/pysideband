@@ -10,6 +10,8 @@ jobs:
     name: Build distribution
     runs-on: ubuntu-latest
 
+    if: ${{ github.repository == 'zoltan-santha/pysideband' }}
+
     permissions:
       contents: read
 
@@ -41,6 +43,8 @@ jobs:
     name: Publish distribution
     needs: build
     runs-on: ubuntu-latest
+
+    if: ${{ github.repository == 'zoltan-santha/pysideband' }}
 
     environment:
       name: pypi
