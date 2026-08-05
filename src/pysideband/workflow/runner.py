@@ -5,6 +5,7 @@ from pysideband.config import Config
 from pysideband.mpi import MPIContext
 from pysideband.registry import MethodRegistry
 from pysideband.methods import MethodResult
+from pysideband.workflow.update import check_for_update
 
 
 def run_workflow(config: Config) -> None:
@@ -57,3 +58,14 @@ def run_workflow(config: Config) -> None:
         f"Workflow completed successfully.",
         flush=True
     )
+    
+    if mpi.is_root:
+        update = check_for_update()
+        if update is not None:
+            latest_version, current_version = update
+            print(
+                f"Update available: {latest_version} (current: {current_version})" "\n"
+                f"Run: 'pip install --upgrade pysideband' or" "\n"
+                f"     'python -m pip install --upgrade pysideband'",
+                flush=True
+            )

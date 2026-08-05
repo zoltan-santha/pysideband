@@ -26,6 +26,8 @@ dependencies = [
     "pyyaml",
     "types-PyYAML",
     "mpi4py",
+    "packaging>=21.0",
+    "platformdirs",
 ]
 
 [project.optional-dependencies]
