@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 
 from pysideband.methods.method import Method, MethodResult
+from pysideband.methods.interpolation import Interpolation
 from pysideband.mpi import MPIContext
 from pysideband.methods.parameters import Field, Parameter, MethodParameters, get_parameters, InternalError, UserInputError
 from pysideband.core.units import energy, energy_inverse_to_units, energy_to_units
@@ -139,6 +140,8 @@ class SinglePhonon(Method):
 
     def apply_input(self, inputs: MethodResult | None) -> None:
         if inputs is not None:
+            if inputs.method_type is not Interpolation:
+                raise UserInputError("Single phonon method only accepts an Interpolation method as input.")
             if "frequencies" in inputs.output_files:
                 self.parameters.frequencies_file = Path(
                     inputs.output_files["frequencies"]
@@ -255,8 +258,13 @@ class SinglePhonon(Method):
         )
         
         return MethodResult(
+            method_type=type(self),
             output_files={
                 "energy": Path(f"{output_dir}/{savefile_name}.energy"),
                 "spectrum": Path(f"{output_dir}/{savefile_name}.spectrum"),
+            },
+            details={
+                "output_units": output_units,
+                "output_dir": output_dir,
             }
         )

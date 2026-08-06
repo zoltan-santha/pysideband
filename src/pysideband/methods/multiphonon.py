@@ -4,13 +4,17 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 import time
-from typing import Any
+from typing import Any, Literal
 import numpy as np
+import io
+import warnings
 
 from pysideband.methods.method import Method, MethodResult
+from pysideband.methods.interpolation import Interpolation
+from pysideband.methods.singlephonon import SinglePhonon
 from pysideband.mpi import MPIContext
 from pysideband.methods.parameters import Field, Parameter, MethodParameters, get_parameters, InternalError, UserInputError
-from pysideband.core.units import energy, energy_to_units, temperature, temperature_to_units
+from pysideband.core.units import energy, energy_to_units, energy_inverse_to_units, temperature, temperature_to_units
 
 
 class Process(Enum):
@@ -205,8 +209,12 @@ def _bose_occupation(frequencies: np.ndarray, T: float) -> np.ndarray:
     x = frequencies / (k_B * T)
     nbar = np.zeros_like(x)
     
+    nbar_max = 1e12
+    x_min = np.log1p(1/nbar_max)
+    underflow_mask = x > x_min  # Avoid underflow in exp for large x
+    
     under_overflow_mask = x < 700  # Avoid overflow in exp for large x
-    mask = under_overflow_mask
+    mask = underflow_mask & under_overflow_mask
     nbar[mask] = 1.0 / np.expm1(x[mask])
     
     return nbar
@@ -252,12 +260,53 @@ class MultiPhonon(Method):
 
     def apply_input(self, inputs: MethodResult | None) -> None:
         if inputs is not None:
-            if "frequencies" in inputs.output_files:
-                self.parameters.frequencies_file = Path(
-                    inputs.output_files["frequencies"]
-                )
-            if "pHRf" in inputs.output_files:
-                self.parameters.pHRf_file = Path(inputs.output_files["pHRf"])
+            if inputs.method_type is Interpolation:
+                if "frequencies" in inputs.output_files:
+                    self.parameters.frequencies_file = Path(
+                        inputs.output_files["frequencies"]
+                    )
+                if "pHRf" in inputs.output_files:
+                    self.parameters.pHRf_file = Path(inputs.output_files["pHRf"])
+            elif inputs.method_type is SinglePhonon:
+                if "energy" in inputs.output_files:
+                    self.parameters.frequencies_file = Path(
+                        inputs.output_files["energy"]
+                    )
+                if "spectrum" in inputs.output_files:
+                    self.parameters.pHRf_file = Path(inputs.output_files["spectrum"])
+                if "output_units" in inputs.details:
+                    output_units = inputs.details["output_units"]
+                    _energy = np.load(self.parameters.frequencies_file)
+                    _spectrum = np.load(self.parameters.pHRf_file)
+                    _energy_eV = energy(_energy, output_units)
+                    _spectrum_inverse_eV = energy_inverse_to_units(_spectrum, output_units)
+                    
+                    order = np.argsort(_energy_eV)
+                    _energy_eV = _energy_eV[order]
+                    _spectrum_inverse_eV = _spectrum_inverse_eV[order]
+                    dE = np.diff(_energy_eV)
+                    if np.any(dE <= 0):
+                        raise InternalError("Energy values must be strictly increasing.")
+                    quadrature_weights = np.zeros_like(_energy_eV)
+                    quadrature_weights[0] = 0.5 * dE[0]
+                    quadrature_weights[-1] = 0.5 * dE[-1]
+                    if _energy_eV.size > 2:
+                        quadrature_weights[1:-1] = 0.5 * (dE[:-1] + dE[1:])
+                    _partial_hrf = _spectrum_inverse_eV * quadrature_weights
+                    
+                    freq_buffer = io.BytesIO()
+                    phrf_buffer = io.BytesIO()
+                    np.save(freq_buffer, _energy_eV)
+                    np.save(phrf_buffer, _partial_hrf)
+                    self.parameters.frequencies_file = freq_buffer
+                    self.parameters.pHRf_file = phrf_buffer
+                    self.parameters.frequencies_file.seek(0)
+                    self.parameters.pHRf_file.seek(0)
+                if "output_dir" in inputs.details:
+                    output_dir = inputs.details["output_dir"]
+                    self.parameters.output_directory = Path(output_dir)
+            else:
+                raise UserInputError("Multi phonon method only accepts an Interpolation or SinglePhonon method as input.")
 
     def run(self, mpi: MPIContext) -> MethodResult:
         if mpi.is_root: print(
@@ -296,6 +345,8 @@ class MultiPhonon(Method):
             f"  done ({time.time() - _start:.2f} seconds)",
             flush=True
         )
+        if isinstance(self.parameters.frequencies_file, io.BytesIO):
+            self.parameters.frequencies_file.close()
         
         _start = time.time()
         if mpi.is_root: print(
@@ -307,6 +358,8 @@ class MultiPhonon(Method):
             f"  done ({time.time() - _start:.2f} seconds)",
             flush=True
         )
+        if isinstance(self.parameters.pHRf_file, io.BytesIO):
+            self.parameters.pHRf_file.close()
         
         mpi.barrier()
         
@@ -584,5 +637,6 @@ class MultiPhonon(Method):
             )
         
         return MethodResult(
+            method_type=type(self),
             output_files=output_files
         )

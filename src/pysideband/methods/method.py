@@ -17,7 +17,9 @@ class MethodParameter:
 
 @dataclass
 class MethodResult:
+    method_type: type
     output_files: dict[str, Path] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 class Method:

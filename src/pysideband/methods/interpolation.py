@@ -310,6 +310,7 @@ class Interpolation(Method):
         )
         
         return MethodResult(
+            method_type=type(self),
             output_files={
                 "frequencies": Path(
                     f"{output_dir}/{savefile_name}.frequencies"
