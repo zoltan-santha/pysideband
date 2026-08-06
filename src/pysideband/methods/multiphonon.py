@@ -14,7 +14,7 @@ from pysideband.methods.interpolation import Interpolation
 from pysideband.methods.singlephonon import SinglePhonon
 from pysideband.mpi import MPIContext
 from pysideband.methods.parameters import Field, Parameter, MethodParameters, get_parameters, InternalError, UserInputError
-from pysideband.core.units import energy, energy_to_units, energy_inverse_to_units, temperature, temperature_to_units
+from pysideband.core.units import energy, energy_to_units, energy_inverse, energy_inverse_to_units, temperature, temperature_to_units
 
 
 class Process(Enum):
@@ -279,7 +279,7 @@ class MultiPhonon(Method):
                     _energy = np.load(self.parameters.frequencies_file)
                     _spectrum = np.load(self.parameters.pHRf_file)
                     _energy_eV = energy(_energy, output_units)
-                    _spectrum_inverse_eV = energy_inverse_to_units(_spectrum, output_units)
+                    _spectrum_inverse_eV = energy_inverse(_spectrum, output_units)
                     
                     order = np.argsort(_energy_eV)
                     _energy_eV = _energy_eV[order]

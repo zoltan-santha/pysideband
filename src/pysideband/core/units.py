@@ -30,6 +30,19 @@ def energy_to_units(value: Sequence[float], units: str) -> Sequence[float]:
     else:
         raise ValueError(f"Unsupported energy units provided: '{units}', supported units are: eV, meV, nm, cm-1, cm^-1")
 
+def energy_inverse(value: float | np.ndarray, units: str) -> Sequence[float]:
+    """Convert units of energy to 1/eV."""
+    if units.lower() in ["ev"]:
+        return value
+    elif units.lower() in ["mev"]:
+        return value * 1000.0
+    elif units.lower() in ["nm"]:
+        return value * 1239.84193
+    elif units.lower() in ["cm-1", "cm^-1"]:
+        return value / 0.000123984193
+    else:
+        raise ValueError(f"Unsupported energy units provided: '{units}', supported units are: eV, meV, nm, cm-1, cm^-1")
+
 def energy_inverse_to_units(value: Sequence[float], units: str) -> Sequence[float]:
     """Convert quantity from 1/eV to specified 1/units."""
     if units.lower() in ["ev"]:
